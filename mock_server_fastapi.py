@@ -1,163 +1,146 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
-from fastapi.openapi.docs import get_swagger_ui_html
 from pydantic import BaseModel
-from contextlib import asynccontextmanager
 import random
 
-# -----------------------
-# CONFIG
-# -----------------------
+# --- Configuration ---
 FLAG = "FLAG{blue_core_stabilized}"
 current_critical_server_id = None
 flag_catch_count = 0
 
-
-# -----------------------
-# APP SETUP
-# -----------------------
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("\n🚀 FastAPI Mock Server is live!")
-    print("📘 Docs available at /docs")
-    yield
-
-
+# --- App Initialization ---
 app = FastAPI(
     title="Mock Server Monitor API",
-    version="1.0.0",
-    description="Simulate server monitoring — view stats, report incidents, and restart services.",
-    lifespan=lifespan,
+    description="Interactive API for server monitoring simulation.",
+    version="1.1.0",
+    contact={"name": "Blue Core"},
 )
 
+# Allow frontend/n8n access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# -----------------------
-# MODELS
-# -----------------------
-class Incident(BaseModel):
-    title: str
-    description: str
-    severity: str
+# --- Models ---
+class ReportIncidentRequest(BaseModel):
+    server_id: str
+    justification: str
 
 
-# -----------------------
-# REDIRECT ROOT → DOCS
-# -----------------------
-@app.get("/", include_in_schema=False)
-async def root():
-    return RedirectResponse(url="/docs")
+class RestartServiceRequest(BaseModel):
+    server_id: str
+    justification: str
 
 
-# -----------------------
-# CUSTOM SWAGGER UI
-# -----------------------
-@app.get("/docs", include_in_schema=False)
-async def custom_swagger_ui():
-    html = get_swagger_ui_html(
-        openapi_url="/openapi.json",
-        title="🚀 Mock Server Monitor - API Console",
-        swagger_favicon_url="https://cdn-icons-png.flaticon.com/512/5968/5968292.png",
-        swagger_ui_parameters={
-            "defaultModelsExpandDepth": -1,
-            "docExpansion": "none",
-            "defaultModelRendering": "model",
-            "syntaxHighlight.theme": "obsidian",
-        },
-    )
-    custom_css = """
-    <style>
-        body { background-color: #0d1117 !important; }
-        .swagger-ui .topbar { background: #161b22 !important; }
-        .swagger-ui .topbar a span { color: #58a6ff !important; font-weight: 600; }
-        .swagger-ui .info hgroup.main a, .swagger-ui .info hgroup.main span {
-            color: #58a6ff !important;
-        }
-        .swagger-ui .scheme-container { background: #161b22 !important; border-radius: 8px; }
-        .swagger-ui .model-box, .swagger-ui .opblock { border-radius: 10px !important; }
-    </style>
-    <div style='background:#0d1117;color:#c9d1d9;padding:15px;text-align:center'>
-        <h2>⚙️ Mock Server API Console</h2>
-        <p>Test the monitoring system endpoints below.</p>
-    </div>
+# --- Root Landing Page ---
+@app.get("/", response_class=HTMLResponse)
+def root():
+    return """
+    <html>
+        <head>
+            <title>Mock Server Monitor API</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', sans-serif;
+                    background-color: #0d1117;
+                    color: #c9d1d9;
+                    text-align: center;
+                    padding-top: 10%;
+                }
+                h1 { color: #58a6ff; }
+                a {
+                    color: #58a6ff;
+                    font-size: 1.2rem;
+                    text-decoration: none;
+                    border: 1px solid #58a6ff;
+                    padding: 10px 15px;
+                    border-radius: 10px;
+                }
+                a:hover {
+                    background-color: #58a6ff;
+                    color: #0d1117;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>🚀 Mock Server Monitor API</h1>
+            <p>Server simulation for Blue Core monitoring system.</p>
+            <a href="/docs">Go to API Docs</a>
+        </body>
+    </html>
     """
-    return HTMLResponse(content=custom_css + html.body.decode())
 
 
-# -----------------------
-# 1️⃣ GET SERVER STATS
-# -----------------------
+# --- 1. GET: Generate Server Stats ---
 @app.get("/get_server_stats")
 def get_server_stats():
     global current_critical_server_id
     server_names = ["api-01", "db-02", "web-03", "cache-01", "worker-05"]
-    critical_index = random.randint(0, len(server_names) - 1)
-    current_critical_server_id = server_names[critical_index]
 
     data = []
+    critical_server_index = random.randint(0, len(server_names) - 1)
+    current_critical_server_id = server_names[critical_server_index]
+
     for i, name in enumerate(server_names):
-        if i == critical_index:
+        if i == critical_server_index:
             stats = {
                 "server_id": name,
-                "cpu_percent": random.randint(90, 99),
-                "memory_percent": random.randint(85, 99),
-                "requests_per_sec": random.randint(9000, 15000),
-                "status": "CRITICAL",
+                "cpu_percent": random.randint(91, 99),
+                "memory_percent": random.randint(91, 99),
+                "requests_per_sec": random.randint(10000, 20000),
+                "critical": True,
             }
         else:
             stats = {
                 "server_id": name,
-                "cpu_percent": random.randint(20, 70),
-                "memory_percent": random.randint(30, 70),
-                "requests_per_sec": random.randint(500, 5000),
-                "status": "NORMAL",
+                "cpu_percent": random.randint(30, 85),
+                "memory_percent": random.randint(30, 80),
+                "requests_per_sec": random.randint(1000, 8000),
+                "critical": False,
             }
         data.append(stats)
 
-    print(f"\n[SERVER STATS] Critical Server: {current_critical_server_id}")
+    print(f"🟢 Generated Server Stats — Critical: {current_critical_server_id}")
     return JSONResponse(content=data)
 
 
-# -----------------------
-# 2️⃣ REPORT INCIDENT
-# -----------------------
+# --- 2. POST: Report Incident ---
 @app.post("/report_incident")
-async def report_incident(incident: Incident):
-    print(f"\n[INCIDENT REPORTED]\n{incident}")
-    return {"message": "Incident received successfully", "data": incident.dict()}
+def report_incident(payload: ReportIncidentRequest):
+    server_id = payload.server_id
+    justification = payload.justification
+
+    if not server_id:
+        raise HTTPException(status_code=400, detail="Missing 'server_id'")
+
+    if server_id == current_critical_server_id:
+        print(f"🔴 Incorrect report: {server_id} was critical!")
+        raise HTTPException(status_code=400, detail="This server was critical")
+    else:
+        print(f"🟢 Incident reported successfully: {server_id}")
+        return {"status": "incident_reported", "server_id": server_id, "justification": justification}
 
 
-# -----------------------
-# 3️⃣ RESTART SERVICE
-# -----------------------
+# --- 3. POST: Restart Service ---
 @app.post("/restart_service")
-async def restart_service(incident: Incident):
+def restart_service(payload: RestartServiceRequest):
     global flag_catch_count
-    flag_catch_count += 1
-    print(f"\n[SERVICE RESTARTED]\n{incident}")
-    return {
-        "message": "Service restart confirmed",
-        "flag": FLAG,
-        "flag_catch_count": flag_catch_count,
-        "data": incident.dict()
-    }
+    server_id = payload.server_id
+    justification = payload.justification
 
+    if not server_id or not justification:
+        raise HTTPException(status_code=400, detail="Missing fields in request")
 
-# -----------------------
-# FALLBACK HELPERS
-# -----------------------
-@app.get("/report_incident")
-def report_info():
-    return {"info": "Use POST with JSON {title, description, severity} to report an incident."}
-
-
-@app.get("/restart_service")
-def restart_info():
-    return {"info": "Use POST with JSON {title, description, severity} to restart a service."}
+    if server_id == current_critical_server_id:
+        flag_catch_count += 1
+        print(f"🟢 Restarted CRITICAL server: {server_id}")
+        return {"status": "restarted", "flag": FLAG, "count": flag_catch_count}
+    else:
+        print(f"🔴 Incorrect restart: {server_id}")
+        raise HTTPException(status_code=400, detail="Incorrect server_id for restart")
