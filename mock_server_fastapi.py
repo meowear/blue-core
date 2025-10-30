@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.openapi.docs import get_swagger_ui_html
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import random
@@ -12,23 +13,24 @@ FLAG = "FLAG{blue_core_stabilized}"
 current_critical_server_id = None
 flag_catch_count = 0
 
+
 # -----------------------
-# APP INITIALIZATION
+# APP SETUP
 # -----------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("\n🚀 FastAPI Mock Server is running on Render!")
-    print("📘 Swagger Docs available at: /docs")
+    print("\n🚀 FastAPI Mock Server is live!")
+    print("📘 Docs available at /docs")
     yield
+
 
 app = FastAPI(
     title="Mock Server Monitor API",
-    version="1.1.0",
-    description="Simulated monitoring API for testing incident reports and restarts.",
+    version="1.0.0",
+    description="Simulate server monitoring — view stats, report incidents, and restart services.",
     lifespan=lifespan,
 )
 
-# Enable CORS (for n8n or frontend)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,8 +38,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # -----------------------
-# SCHEMA
+# MODELS
 # -----------------------
 class Incident(BaseModel):
     title: str
@@ -46,82 +49,50 @@ class Incident(BaseModel):
 
 
 # -----------------------
-# HELPER
+# REDIRECT ROOT → DOCS
 # -----------------------
-def print_boxed(title, content, success=False):
-    color = "\033[92m" if success else "\033[91m"
-    print("\n" + "=" * 60)
-    print(f"{color}{title}{'\033[0m'}")
-    print("=" * 60)
-    print(content)
-    print("=" * 60 + "\n")
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs")
 
 
 # -----------------------
-# HOMEPAGE (UI)
+# CUSTOM SWAGGER UI
 # -----------------------
-@app.get("/", response_class=HTMLResponse)
-def home():
-    html = """
-    <html>
-        <head>
-            <title>Mock Server Monitor API</title>
-            <style>
-                body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    background-color: #0d1117;
-                    color: #c9d1d9;
-                    text-align: center;
-                    margin: 0;
-                    padding: 0;
-                }
-                h1 {
-                    color: #58a6ff;
-                    margin-top: 60px;
-                }
-                .container {
-                    margin: 40px auto;
-                    width: 80%;
-                    max-width: 600px;
-                    background-color: #161b22;
-                    border-radius: 12px;
-                    padding: 30px;
-                    box-shadow: 0 0 12px rgba(56,139,253,0.2);
-                }
-                a {
-                    color: #58a6ff;
-                    text-decoration: none;
-                    font-weight: 500;
-                }
-                a:hover {
-                    text-decoration: underline;
-                }
-                .endpoint {
-                    background-color: #21262d;
-                    border-radius: 8px;
-                    padding: 12px;
-                    margin: 12px 0;
-                    font-family: monospace;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Mock Server Monitor API</h1>
-            <div class="container">
-                <p>This API simulates a monitoring system with three endpoints:</p>
-                <div class="endpoint">GET /get_server_stats → Get live server stats</div>
-                <div class="endpoint">POST /report_incident → Report an incident</div>
-                <div class="endpoint">POST /restart_service → Restart a service</div>
-                <p>Use the <a href="/docs">Swagger UI</a> for interactive testing.</p>
-            </div>
-        </body>
-    </html>
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui():
+    html = get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title="🚀 Mock Server Monitor - API Console",
+        swagger_favicon_url="https://cdn-icons-png.flaticon.com/512/5968/5968292.png",
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,
+            "docExpansion": "none",
+            "defaultModelRendering": "model",
+            "syntaxHighlight.theme": "obsidian",
+        },
+    )
+    custom_css = """
+    <style>
+        body { background-color: #0d1117 !important; }
+        .swagger-ui .topbar { background: #161b22 !important; }
+        .swagger-ui .topbar a span { color: #58a6ff !important; font-weight: 600; }
+        .swagger-ui .info hgroup.main a, .swagger-ui .info hgroup.main span {
+            color: #58a6ff !important;
+        }
+        .swagger-ui .scheme-container { background: #161b22 !important; border-radius: 8px; }
+        .swagger-ui .model-box, .swagger-ui .opblock { border-radius: 10px !important; }
+    </style>
+    <div style='background:#0d1117;color:#c9d1d9;padding:15px;text-align:center'>
+        <h2>⚙️ Mock Server API Console</h2>
+        <p>Test the monitoring system endpoints below.</p>
+    </div>
     """
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=custom_css + html.body.decode())
 
 
 # -----------------------
-# 1️⃣ Get Server Stats
+# 1️⃣ GET SERVER STATS
 # -----------------------
 @app.get("/get_server_stats")
 def get_server_stats():
@@ -150,27 +121,27 @@ def get_server_stats():
             }
         data.append(stats)
 
-    print_boxed(f"SERVER STATS GENERATED (Critical: {current_critical_server_id})", str(data), success=True)
+    print(f"\n[SERVER STATS] Critical Server: {current_critical_server_id}")
     return JSONResponse(content=data)
 
 
 # -----------------------
-# 2️⃣ Report Incident
+# 2️⃣ REPORT INCIDENT
 # -----------------------
 @app.post("/report_incident")
 async def report_incident(incident: Incident):
-    print_boxed("INCIDENT REPORTED", str(incident), success=True)
+    print(f"\n[INCIDENT REPORTED]\n{incident}")
     return {"message": "Incident received successfully", "data": incident.dict()}
 
 
 # -----------------------
-# 3️⃣ Restart Service
+# 3️⃣ RESTART SERVICE
 # -----------------------
 @app.post("/restart_service")
 async def restart_service(incident: Incident):
     global flag_catch_count
     flag_catch_count += 1
-    print_boxed("SERVICE RESTARTED", str(incident), success=True)
+    print(f"\n[SERVICE RESTARTED]\n{incident}")
     return {
         "message": "Service restart confirmed",
         "flag": FLAG,
@@ -180,11 +151,12 @@ async def restart_service(incident: Incident):
 
 
 # -----------------------
-# Optional GET Fallbacks (prevents 405)
+# FALLBACK HELPERS
 # -----------------------
 @app.get("/report_incident")
 def report_info():
     return {"info": "Use POST with JSON {title, description, severity} to report an incident."}
+
 
 @app.get("/restart_service")
 def restart_info():
