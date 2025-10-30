@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from pydantic import BaseModel
 import random
 
 # --- Configuration ---
@@ -9,8 +10,17 @@ FLAG = "FLAG{blue_core_stabilized}"
 current_critical_server_id = None
 flag_catch_count = 0
 
+# --- Define Incident Schema ---
+class Incident(BaseModel):
+    title: str
+    description: str
+    severity: str
 
-# --- Lifespan (startup message, no deprecation warnings) ---
+class ServerAction(BaseModel):
+    server_id: str
+    justification: str | None = None
+
+# --- Lifespan ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("\n" + "*" * 50)
@@ -22,23 +32,20 @@ async def lifespan(app: FastAPI):
     print("  3. POST → /report_incident")
     print("*" * 50 + "\n")
     yield
-    # (You could add cleanup/shutdown code here if needed)
-
 
 # --- App Initialization ---
 app = FastAPI(title="Mock Server Monitor API", lifespan=lifespan)
 
-# Enable CORS (so frontend tools or n8n can call it)
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for testing
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# --- Helper print function ---
+# --- Helper ---
 def print_boxed(title, content, success=False):
     color_start = "\033[92m" if success else "\033[91m"
     color_end = "\033[0m"
@@ -49,8 +56,7 @@ def print_boxed(title, content, success=False):
         print(f"  {line}")
     print("=" * 50 + "\n")
 
-
-# --- 1. Endpoint: Generate Dynamic Server Data ---
+# --- 1. GET: Generate Dynamic Server Data ---
 @app.get("/get_server_stats")
 def get_server_stats():
     global current_critical_server_id
@@ -85,73 +91,42 @@ def get_server_stats():
     )
     return JSONResponse(content=data)
 
-
-# --- 2. Endpoint: Report Incident ---
+# --- 2. POST: Report Incident ---
 @app.post("/report_incident")
-async def report_incident(request: Request):
-    try:
-        data = await request.json()
-        server_id = data.get("server_id")
+async def report_incident(incident: Incident):
+    global current_critical_server_id
+    print_boxed("INCIDENT REPORTED", f"{incident.model_dump()}", success=True)
+    return {"message": "Incident received", "data": incident}
 
-        if not server_id:
-            raise HTTPException(status_code=400, detail="Missing 'server_id'")
-
-        if server_id == current_critical_server_id:
-            content = (
-                f"Server ID: {server_id}\n"
-                f"Result: FAILED! This server was critical and should have been restarted."
-            )
-            print_boxed("AGENT LOGIC FAILED (Report)", content, success=False)
-            raise HTTPException(status_code=400, detail="This server was critical")
-        else:
-            content = f"Server ID: {server_id}\nResult: Correctly reported as non-critical."
-            print_boxed("AGENT LOGIC SUCCESS (Report)", content, success=True)
-            return {"status": "reported"}
-    except Exception as e:
-        print_boxed("INVALID REPORT PAYLOAD", str(e), success=False)
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-# --- 3. Endpoint: Restart Service ---
+# --- 3. POST: Restart Service ---
 @app.post("/restart_service")
-async def restart_service(request: Request):
-    global flag_catch_count
-    try:
-        data = await request.json()
-        server_id = data.get("server_id")
-        justification = data.get("justification")
+async def restart_service(action: ServerAction):
+    global flag_catch_count, current_critical_server_id
 
-        if not server_id or not justification:
-            raise HTTPException(
-                status_code=400, detail="Missing 'server_id' or 'justification'"
-            )
+    if not action.server_id:
+        raise HTTPException(status_code=400, detail="Missing 'server_id'")
 
-        if server_id == current_critical_server_id:
-            flag_catch_count += 1
-            content = (
-                f"Server ID:     {server_id} (Correct!)\n"
-                f"Justification: {justification}\n"
-                f"\n--- FLAG REVEALED ---\n{FLAG}\n\n"
-                f"Total flags caught this session: {flag_catch_count}"
-            )
-            print_boxed("CRITICAL ACTION VALIDATED", content, success=True)
-            return {"status": "restarted", "flag": FLAG}
-        else:
-            content = (
-                f"Server ID:     {server_id} (Incorrect!)\n"
-                f"Expected:      {current_critical_server_id}\n"
-                f"Justification: {justification}\n"
-                f"\n--- NO FLAG ---"
-            )
-            print_boxed("INVALID RESTART ATTEMPT", content, success=False)
-            raise HTTPException(status_code=400, detail="Incorrect server_id for restart")
+    if action.server_id == current_critical_server_id:
+        flag_catch_count += 1
+        content = (
+            f"Server ID:     {action.server_id} (Correct!)\n"
+            f"Justification: {action.justification}\n"
+            f"\n--- FLAG REVEALED ---\n{FLAG}\n\n"
+            f"Total flags caught this session: {flag_catch_count}"
+        )
+        print_boxed("CRITICAL ACTION VALIDATED", content, success=True)
+        return {"status": "restarted", "flag": FLAG}
+    else:
+        content = (
+            f"Server ID:     {action.server_id} (Incorrect!)\n"
+            f"Expected:      {current_critical_server_id}\n"
+            f"Justification: {action.justification}\n"
+            f"\n--- NO FLAG ---"
+        )
+        print_boxed("INVALID RESTART ATTEMPT", content, success=False)
+        raise HTTPException(status_code=400, detail="Incorrect server_id for restart")
 
-    except Exception as e:
-        print_boxed("INVALID RESTART PAYLOAD", str(e), success=False)
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-# --- Healthcheck (for quick testing or automation) ---
-# @app.get("/health")
-# def health():
-#     return {"status": "ok"}
+# --- Health Check ---
+@app.get("/health")
+def health():
+    return {"status": "ok"}
