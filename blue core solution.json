@@ -1,0 +1,351 @@
+{
+  "name": "blue core copy 3",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        -160
+      ],
+      "id": "012feb99-9e18-4ba5-8400-60c5bb413d01",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{$json.full_prompt}}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "={{$json.full_prompt}}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        368,
+        -144
+      ],
+      "id": "618612fa-5eb4-4b33-b147-0f395f2f02b0",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        368,
+        64
+      ],
+      "id": "8e814a72-eb80-4b10-b6ec-25a9879525a0",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "VqNkSPnt7IqVJLMn",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": "=1",
+        "options": {
+          "reset": "={{$json.output[$itemIndex]}}"
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        720,
+        -144
+      ],
+      "id": "282375e6-2489-4c47-bc4a-76350631b202",
+      "name": "Loop Over Items",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e29994af-480e-4e31-98d9-48559972d7db",
+              "leftValue": "={{$json.action}}",
+              "rightValue": "=RESTART",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        -128
+      ],
+      "id": "317fadfc-6364-4a97-ab0d-9deb4cd4c2ab",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1eeac1b8-74a0-437e-a248-66f849f76aec",
+              "name": "full_prompt",
+              "value": "=Analyze the following JSON array of server statistics. Apply this strict logic:\n1. A server is CRITICAL if BOTH CPU usage is > 90% AND Memory usage is > 90%. The action must be 'RESTART'.\n2. All other servers must have the action 'REPORT'.\n\nYou MUST output ONLY a clean JSON ARRAY (starting with [ and ending with ]) containing objects for every server in the input. Each object must contain the following three keys:\n- server_id (string): The ID of the server.\n- action (string): Either 'RESTART' or 'REPORT'.\n- justification (string): A brief (1-2 sentence) reason for the decision.\n\nInput Data: {{ JSON.stringify($json) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        192,
+        -144
+      ],
+      "id": "d882c477-9357-4a07-b435-0a418d0ec10b",
+      "name": "full_prompt"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "[\n{\"server_id\": \"api-01\", \"action\": \"REPORT\", \"justification\": \"...\"},\n {\"server_id\": \"db-02\", \"action\": \"RESTART\", \"justification\": \"...\"},\n {\"server_id\": \"web-03\", \"action\": \"REPORT\", \"justification\": \"...\"}\n]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        512,
+        64
+      ],
+      "id": "89d947e7-af05-4f19-bc7c-ebf924ad74f1",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://blue-core.onrender.com/report_incident",
+        "sendBody": true,
+        "specifyBody": "=\n  \"server_id\": \"{{$json.server_id}}\", \n  \"justification\": \"{{$json.justification}}\"\n}",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        96
+      ],
+      "id": "9c678556-8132-47dc-96b9-f6fe769f9686",
+      "name": "report"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://blue-core.onrender.com/submit_restart_attempt",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"server_id\": \"{{$json.server_id}}\", \n  \"justification\": \"{{$json.justification}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1264,
+        -144
+      ],
+      "id": "05c490eb-7580-4c85-be09-5e5e4301d47c",
+      "name": "restart (blue flag)"
+    },
+    {
+      "parameters": {
+        "url": "https://blue-core.onrender.com/get_server_batch",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        -144
+      ],
+      "id": "5b10be9d-9a1a-4160-88dd-36e9faa764c2",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.first().json.output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -320
+      ],
+      "id": "34a7cb4d-4b1d-4fed-bb9c-b9c2b3dc32c0",
+      "name": "array to json"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "array to json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "restart (blue flag)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "full_prompt": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "report": {
+      "main": [
+        []
+      ]
+    },
+    "restart (blue flag)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "full_prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "array to json": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "80fb6652-d3bc-4825-9c96-ff11c68b8c87",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b59fb24a7542099e38281b7a587874e4bb787f76218e36871ad56b4b1a422de7"
+  },
+  "id": "XkYpKjfrRjjeNfaz",
+  "tags": []
+}
