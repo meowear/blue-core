@@ -5,8 +5,8 @@ from pydantic import BaseModel
 import uvicorn
 
 # --- Configuration ---
-RESTART_POOL_FILE = "server_1.json"
-REPORT_POOL_FILE = "server_2.json"
+RESTART_POOL_FILE = "server_2.json"
+REPORT_POOL_FILE = "server_1.json"
 RESTART_POOL = []
 REPORT_POOL = []
 CRITICAL_SERVER_IDS = set()
