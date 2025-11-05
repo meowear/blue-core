@@ -38,7 +38,7 @@ The challenge is hosted on a live server. Your n8n workflow will interact with t
 
 Your agent must first get its list of servers to analyze.
 
-Endpoint: GET https://your-blue-core-server.onrender.com/get_server_batch
+Endpoint: GET [GET](https://blue-core.onrender.com/get_server_batch)
 
 Description: This will return a JSON array of servers, amongst which there will be critical servers.
 
@@ -46,7 +46,7 @@ Description: This will return a JSON array of servers, amongst which there will 
 
 When your agent identifies a critical server, it must send its decision here.
 
-Endpoint: POST https://your-blue-core-server.onrender.com/submit_restart_attempt
+Endpoint: [POST] (https://blue-core.onrender.com/submit_restart_attempt)
 
 Description: You must POST your RESTART decision to this URL. The API will check your answer.
 
