@@ -38,7 +38,7 @@ The challenge is hosted on a live server. Your n8n workflow will interact with t
 
 Your agent must first get its list of servers to analyze.
 
-Endpoint: GET [GET](https://blue-core.onrender.com/get_server_batch)
+Endpoint: [GET] (https://blue-core.onrender.com/get_server_batch)
 
 Description: This will return a JSON array of servers, amongst which there will be critical servers.
 
