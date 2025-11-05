@@ -1,0 +1,62 @@
+[
+  {
+    "server_id": "srv-us-east-db-10",
+    "cpu_percent": 98,
+    "memory_percent": 95,
+    "requests_per_sec": 12000
+  },
+  {
+    "server_id": "srv-eu-west-auth-01",
+    "cpu_percent": 95,
+    "memory_percent": 92,
+    "requests_per_sec": 9500
+  },
+  {
+    "server_id": "srv-apac-payment-01",
+    "cpu_percent": 99,
+    "memory_percent": 91,
+    "requests_per_sec": 7000
+  },
+  {
+    "server_id": "srv-us-west-stream-01",
+    "cpu_percent": 92,
+    "memory_percent": 94,
+    "requests_per_sec": 20000
+  },
+  {
+    "server_id": "srv-us-east-session-01",
+    "cpu_percent": 96,
+    "memory_percent": 96,
+    "requests_per_sec": 18000
+  },
+  {
+    "server_id": "srv-eu-central-inventory-01",
+    "cpu_percent": 94,
+    "memory_percent": 93,
+    "requests_per_sec": 6000
+  },
+  {
+    "server_id": "srv-apac-api-10",
+    "cpu_percent": 91,
+    "memory_percent": 97,
+    "requests_per_sec": 16000
+  },
+  {
+    "server_id": "srv-us-west-compute-01",
+    "cpu_percent": 97,
+    "memory_percent": 91,
+    "requests_per_sec": 11000
+  },
+  {
+    "server_id": "srv-sa-east-db-01",
+    "cpu_percent": 93,
+    "memory_percent": 93,
+    "requests_per_sec": 13000
+  },
+  {
+    "server_id": "srv-eu-west-web-10",
+    "cpu_percent": 96,
+    "memory_percent": 92,
+    "requests_per_sec": 22000
+  }
+]
